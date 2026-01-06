@@ -70,6 +70,7 @@ pre { background:black; padding:10px; border-radius:6px; }
 <form action="/upload-bg" method="post" enctype="multipart/form-data">
 <input type="file" name="bg" accept="image/*" required>
 <button class="upload">⬆ Upload Background</button>
+
 </form>
 </div>
 
