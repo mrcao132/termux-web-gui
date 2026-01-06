@@ -24,15 +24,13 @@ def save_score(score):
     return scores
 
 # ===== LOG =====
-def log_access(page, extra=""):
+def log_access(page):
     print("\n[+] ACCESS")
-    print("IP        :", request.remote_addr)
-    print("Page      :", page)
-    print("UserAgent :", request.headers.get("User-Agent"))
-    print("Time      :", datetime.datetime.now())
-    if extra:
-        print(extra)
-    print("-" * 40)
+    print("IP :", request.remote_addr)
+    print("Page :", page)
+    print("UA :", request.headers.get("User-Agent"))
+    print("Time :", datetime.datetime.now())
+    print("-"*40)
 
 def bg_style():
     if os.path.exists(BG_PATH):
@@ -81,7 +79,7 @@ pre { background:black; padding:10px; border-radius:6px; }
 </html>
 """
 
-# ===== DINO GAME (FULL) =====
+# ===== DINO GAME =====
 HTML_DINO = """
 <!DOCTYPE html>
 <html>
@@ -89,10 +87,9 @@ HTML_DINO = """
 <title>Dino Game</title>
 <style>
 body { margin:0; color:white; {{ bg }} }
-canvas { display:block; margin:auto; background:rgba(0,0,0,.5); }
-h2 { text-align:center; margin:0; padding:10px; background:rgba(0,0,0,.7); }
-#controls, #scorebox { text-align:center; background:rgba(0,0,0,.7); padding:10px; }
-#controls button { padding:6px 14px; margin:4px; border:none; border-radius:6px; cursor:pointer; }
+canvas { display:block; margin:auto; background:rgba(0,0,0,.5); image-rendering:pixelated; }
+h2, #controls, #scorebox { text-align:center; background:rgba(0,0,0,.7); padding:8px; }
+button { padding:6px 14px; margin:4px; border:none; border-radius:6px; cursor:pointer; }
 .active { background:#00ff99; color:black; }
 </style>
 </head>
@@ -105,6 +102,7 @@ h2 { text-align:center; margin:0; padding:10px; background:rgba(0,0,0,.7); }
 <button onclick="setLevel(1)" id="lv1">1</button>
 <button onclick="setLevel(2)" id="lv2" class="active">2</button>
 <button onclick="setLevel(3)" id="lv3">3</button>
+<button onclick="restart()">🔄 Chơi lại</button>
 </div>
 
 <canvas id="game" width="800" height="300"></canvas>
@@ -115,7 +113,7 @@ h2 { text-align:center; margin:0; padding:10px; background:rgba(0,0,0,.7); }
 </div>
 
 <script>
-let scores = {{ scores }};
+let scores={{ scores }};
 document.getElementById("scores").innerHTML =
  scores.map((s,i)=>`<li>Mốc ${i+1}: ${s}</li>`).join("");
 
@@ -130,23 +128,41 @@ function setLevel(lv){
 }
 
 const c=document.getElementById("game"),ctx=c.getContext("2d");
-let d={x:50,y:220,w:40,h:40,vy:0,j:false};
-let obs=[], score=0, over=false;
+let dino, obs, score, over, frame=0;
+
+function init(){
+ dino={x:50,y:220,w:32,h:32,vy:0,j:false,leg:0};
+ obs=[];
+ score=0;
+ over=false;
+ spawn();
+}
+function restart(){ init(); loop(); }
 
 function spawn(){
- let r=Math.random(), o;
- if(r<0.4) o={w:20,h:30,y:230};
- else if(r<0.7) o={w:30,h:50,y:210};
- else o={w:30,h:20,y:Math.random()>0.5?190:160};
- o.x=820; obs.push(o);
+ let r=Math.random(), o={};
+ if(r<0.4){o={w:20,h:30,y:230}}
+ else if(r<0.7){o={w:30,h:50,y:210}}
+ else{o={w:30,h:20,y:Math.random()>0.5?190:160}}
+ o.x=820;
+ obs.push(o);
 }
-spawn();
+
+function drawDino(){
+ ctx.fillStyle="white";
+ ctx.fillRect(dino.x,dino.y,dino.w,dino.h-8);
+ ctx.fillRect(dino.x+(dino.leg?18:4),dino.y+dino.h-8,6,8);
+ ctx.fillRect(dino.x+(dino.leg?4:18),dino.y+dino.h-8,6,8);
+ if(frame%10===0) dino.leg^=1;
+}
 
 function loop(){
  ctx.clearRect(0,0,800,300);
- ctx.fillStyle="white";
- ctx.fillRect(d.x,d.y,d.w,d.h);
+ frame++;
 
+ drawDino();
+
+ ctx.fillStyle="white";
  obs.forEach(o=>{
   ctx.fillRect(o.x,o.y,o.w,o.h);
   o.x-=speed;
@@ -155,24 +171,28 @@ function loop(){
  if(obs[0].x+obs[0].w<0){obs.shift();spawn();score++}
  ctx.fillText("Score: "+score,10,20);
 
- if(d.j){d.vy+=gravity;d.y+=d.vy;if(d.y>=220){d.y=220;d.j=false;d.vy=0}}
+ if(dino.j){
+  dino.vy+=gravity;
+  dino.y+=dino.vy;
+  if(dino.y>=220){dino.y=220;dino.j=false;dino.vy=0}
+ }
 
  obs.forEach(o=>{
-  if(d.x<o.x+o.w&&d.x+d.w>o.x&&d.y<o.y+o.h&&d.y+d.h>o.y) over=true;
+  if(dino.x<o.x+o.w&&dino.x+dino.w>o.x&&dino.y<o.y+o.h&&dino.y+dino.h>o.y) over=true;
  });
 
  if(!over) requestAnimationFrame(loop);
  else{
   fetch("/save-score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({score})});
-  ctx.fillText("GAME OVER - Reload",300,150);
+  ctx.fillText("GAME OVER",360,150);
  }
 }
 
-document.addEventListener("keydown",e=>{if(e.code==="Space"&&!d.j){d.j=true;d.vy=-18}});
-c.addEventListener("click",()=>{if(!d.j){d.j=true;d.vy=-18}});
-loop();
-</script>
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&!dino.j){dino.j=true;dino.vy=-18}});
+c.addEventListener("click",()=>{if(!dino.j){dino.j=true;dino.vy=-18}});
 
+init(); loop();
+</script>
 </body>
 </html>
 """
@@ -223,5 +243,4 @@ def panel():
     return render_template_string(HTML_PANEL, info=device_info("Panel"), bg=bg_style())
 
 app.run(host="0.0.0.0", port=5000)
-
 
