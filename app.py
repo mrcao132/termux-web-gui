@@ -32,9 +32,17 @@ def log_access(page):
     print("Time :", datetime.datetime.now())
     print("-"*40)
 
+# ===== FIX BACKGROUND (ANTI WHITE SCREEN) =====
 def bg_style():
     if os.path.exists(BG_PATH):
-        return f"background:url('/{BG_PATH}') center/cover fixed;"
+        ts = int(datetime.datetime.now().timestamp())
+        return f"""
+        background-color:#111;
+        background-image:url('/{BG_PATH}?v={ts}');
+        background-position:center;
+        background-size:cover;
+        background-attachment:fixed;
+        """
     return "background:#111;"
 
 def device_info(extra=""):
@@ -234,8 +242,9 @@ def save_score_api():
 
 @app.route("/upload-bg", methods=["POST"])
 def upload_bg():
-    f=request.files.get("bg")
-    if f: f.save(BG_PATH)
+    f = request.files.get("bg")
+    if f and f.filename.lower().endswith((".jpg",".jpeg",".png",".webp")):
+        f.save(BG_PATH)
     return redirect("/")
 
 @app.route("/panel")
