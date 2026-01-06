@@ -8,7 +8,7 @@ BG_PATH = os.path.join(UPLOAD_DIR, "bg.jpg")
 SCORE_FILE = "scores.json"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ===== SCORE =====
+# ================= SCORE =================
 def load_scores():
     if not os.path.exists(SCORE_FILE):
         return []
@@ -21,28 +21,21 @@ def save_score(score):
     scores = sorted(scores, reverse=True)[:5]
     with open(SCORE_FILE, "w") as f:
         json.dump(scores, f)
-    return scores
 
-# ===== LOG =====
+# ================= LOG =================
 def log_access(page):
-    print("\n[+] ACCESS")
+    print("\n[ACCESS]")
     print("IP :", request.remote_addr)
     print("Page :", page)
     print("UA :", request.headers.get("User-Agent"))
     print("Time :", datetime.datetime.now())
-    print("-"*40)
+    print("-" * 40)
 
-# ===== FIX BACKGROUND (ANTI WHITE SCREEN) =====
+# ================= BACKGROUND (FIX TRẮNG / ĐEN) =================
 def bg_style():
     if os.path.exists(BG_PATH):
         ts = int(datetime.datetime.now().timestamp())
-        return f"""
-        background-color:#111;
-        background-image:url('/{BG_PATH}?v={ts}');
-        background-position:center;
-        background-size:cover;
-        background-attachment:fixed;
-        """
+        return f"background-color:#111;background-image:url('/{BG_PATH}?v={ts}');background-size:cover;background-position:center;background-attachment:fixed;"
     return "background:#111;"
 
 def device_info(extra=""):
@@ -51,14 +44,14 @@ UA: {request.headers.get("User-Agent")}
 Time: {datetime.datetime.now()}
 {extra}"""
 
-# ===== GUI MAIN =====
+# ================= GUI MAIN =================
 HTML_MAIN = """
 <!DOCTYPE html>
 <html>
 <head>
 <title>Termux GUI</title>
 <style>
-body { font-family:Arial; color:white; text-align:center; margin-top:30px; {{ bg }} }
+body { font-family:Arial; color:white; text-align:center; margin-top:30px; }
 button { font-size:16px; padding:14px 30px; border:none; border-radius:10px; cursor:pointer; margin:12px; }
 .game { background:#00bfff; }
 .panel { background:#ff5555; }
@@ -67,8 +60,8 @@ button { font-size:16px; padding:14px 30px; border:none; border-radius:10px; cur
 pre { background:black; padding:10px; border-radius:6px; }
 </style>
 </head>
-<body>
 
+<body style="{{ bg }}">
 <h1>🧪 Termux Web GUI</h1>
 
 <div class="box"><pre>{{ info }}</pre></div>
@@ -82,27 +75,26 @@ pre { background:black; padding:10px; border-radius:6px; }
 
 <form action="/dino"><button class="game">🦖 CHƠI DINO GAME</button></form>
 <form action="/panel"><button class="panel">🔴 GUI KHÁC</button></form>
-
 </body>
 </html>
 """
 
-# ===== DINO GAME =====
+# ================= DINO GAME =================
 HTML_DINO = """
 <!DOCTYPE html>
 <html>
 <head>
 <title>Dino Game</title>
 <style>
-body { margin:0; color:white; {{ bg }} }
+body { margin:0; color:white; }
 canvas { display:block; margin:auto; background:rgba(0,0,0,.5); image-rendering:pixelated; }
 h2, #controls, #scorebox { text-align:center; background:rgba(0,0,0,.7); padding:8px; }
 button { padding:6px 14px; margin:4px; border:none; border-radius:6px; cursor:pointer; }
 .active { background:#00ff99; color:black; }
 </style>
 </head>
-<body>
 
+<body style="{{ bg }}">
 <h2>🦖 Dino Game – Space / Click để nhảy</h2>
 
 <div id="controls">
@@ -125,9 +117,8 @@ let scores={{ scores }};
 document.getElementById("scores").innerHTML =
  scores.map((s,i)=>`<li>Mốc ${i+1}: ${s}</li>`).join("");
 
-let gravity=1.2, speed=6, level=2;
+let gravity=1.2, speed=6;
 function setLevel(lv){
- level=lv;
  document.querySelectorAll("#controls button").forEach(b=>b.classList.remove("active"));
  document.getElementById("lv"+lv).classList.add("active");
  if(lv===1){gravity=0.9; speed=4}
@@ -136,7 +127,7 @@ function setLevel(lv){
 }
 
 const c=document.getElementById("game"),ctx=c.getContext("2d");
-let dino, obs, score, over, frame=0;
+let dino, obs, score, over, frame=0, running=false;
 
 function init(){
  dino={x:50,y:220,w:32,h:32,vy:0,j:false,leg:0};
@@ -145,13 +136,19 @@ function init(){
  over=false;
  spawn();
 }
-function restart(){ init(); loop(); }
+
+function restart(){
+ running=false;
+ init();
+ running=true;
+ requestAnimationFrame(loop);
+}
 
 function spawn(){
  let r=Math.random(), o={};
- if(r<0.4){o={w:20,h:30,y:230}}
- else if(r<0.7){o={w:30,h:50,y:210}}
- else{o={w:30,h:20,y:Math.random()>0.5?190:160}}
+ if(r<0.4)o={w:20,h:30,y:230};
+ else if(r<0.7)o={w:30,h:50,y:210};
+ else o={w:30,h:20,y:Math.random()>0.5?190:160};
  o.x=820;
  obs.push(o);
 }
@@ -161,16 +158,16 @@ function drawDino(){
  ctx.fillRect(dino.x,dino.y,dino.w,dino.h-8);
  ctx.fillRect(dino.x+(dino.leg?18:4),dino.y+dino.h-8,6,8);
  ctx.fillRect(dino.x+(dino.leg?4:18),dino.y+dino.h-8,6,8);
- if(frame%10===0) dino.leg^=1;
+ if(frame%10===0)dino.leg^=1;
 }
 
 function loop(){
+ if(!running) return;
  ctx.clearRect(0,0,800,300);
  frame++;
 
  drawDino();
 
- ctx.fillStyle="white";
  obs.forEach(o=>{
   ctx.fillRect(o.x,o.y,o.w,o.h);
   o.x-=speed;
@@ -189,34 +186,41 @@ function loop(){
   if(dino.x<o.x+o.w&&dino.x+dino.w>o.x&&dino.y<o.y+o.h&&dino.y+dino.h>o.y) over=true;
  });
 
- if(!over) requestAnimationFrame(loop);
- else{
+ if(over){
+  running=false;
   fetch("/save-score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({score})});
   ctx.fillText("GAME OVER",360,150);
+ } else {
+  requestAnimationFrame(loop);
  }
 }
 
-document.addEventListener("keydown",e=>{if(e.code==="Space"&&!dino.j){dino.j=true;dino.vy=-18}});
+document.addEventListener("keydown",e=>{
+ if(e.code==="Space"&&!dino.j){dino.j=true;dino.vy=-18}
+});
 c.addEventListener("click",()=>{if(!dino.j){dino.j=true;dino.vy=-18}});
 
-init(); loop();
+init();
+running=true;
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
 """
 
-# ===== PANEL =====
+# ================= PANEL =================
 HTML_PANEL = """
 <!DOCTYPE html>
 <html>
 <head>
 <title>Panel</title>
 <style>
-body { color:white; text-align:center; {{ bg }} }
+body { color:white; text-align:center; }
 .box { background:rgba(0,0,0,.7); padding:20px; width:90%; max-width:600px; margin:auto; border-radius:10px; }
 </style>
 </head>
-<body>
+
+<body style="{{ bg }}">
 <h1>🧩 PANEL</h1>
 <div class="box"><pre>{{ info }}</pre></div>
 <form action="/"><button>⬅ Back</button></form>
@@ -224,7 +228,7 @@ body { color:white; text-align:center; {{ bg }} }
 </html>
 """
 
-# ===== ROUTES =====
+# ================= ROUTES =================
 @app.route("/")
 def index():
     log_access("/")
@@ -242,7 +246,7 @@ def save_score_api():
 
 @app.route("/upload-bg", methods=["POST"])
 def upload_bg():
-    f = request.files.get("bg")
+    f=request.files.get("bg")
     if f and f.filename.lower().endswith((".jpg",".jpeg",".png",".webp")):
         f.save(BG_PATH)
     return redirect("/")
